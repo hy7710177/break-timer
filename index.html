@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>休憩タイマー</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --primary: #6C63FF;
+    --primary-dark: #5A52D5;
+    --accent: #FF6B6B;
+    --accent-dark: #E55A5A;
+    --bg: #0F0E17;
+    --surface: #1A1930;
+    --surface-light: #252446;
+    --text: #FFFFFE;
+    --text-dim: #A7A9BE;
+    --success: #2CB67D;
+    --warning: #FF8906;
+  }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  .app {
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* Background decoration */
+  .bg-glow {
+    position: fixed;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .bg-glow--1 { background: var(--primary); top: -100px; left: -50px; }
+  .bg-glow--2 { background: var(--accent); bottom: -100px; right: -50px; }
+
+  /* Header */
+  .header {
+    padding: 20px 24px 12px;
+    position: relative;
+    z-index: 1;
+  }
+  .header__label {
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .header__title {
+    font-size: 28px;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Current time display */
+  .now-bar {
+    margin: 8px 24px 0;
+    padding: 14px 20px;
+    background: var(--surface);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+  }
+  .now-bar__icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--primary), #8B83FF);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+  .now-bar__time {
+    font-size: 32px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+  }
+  .now-bar__date {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* Main content */
+  .main {
+    flex: 1;
+    padding: 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Selection screen */
+  .select-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .select-section__label {
+    font-size: 15px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-bottom: 4px;
+  }
+
+  .break-btn {
+    width: 100%;
+    border: none;
+    border-radius: 24px;
+    padding: 28px 24px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .break-btn:active {
+    transform: scale(0.97);
+  }
+  .break-btn--70 {
+    background: linear-gradient(135deg, #6C63FF 0%, #8B83FF 50%, #A78BFA 100%);
+    box-shadow: 0 8px 32px rgba(108, 99, 255, 0.3);
+  }
+  .break-btn--100 {
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 50%, #FFA07A 100%);
+    box-shadow: 0 8px 32px rgba(255, 107, 107, 0.3);
+  }
+  .break-btn__shimmer {
+    position: absolute;
+    top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    animation: shimmer 3s infinite;
+  }
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+  .break-btn__content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .break-btn__icon {
+    width: 56px;
+    height: 56px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+  .break-btn__text {
+    text-align: left;
+  }
+  .break-btn__duration {
+    font-size: 28px;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1.2;
+  }
+  .break-btn__sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.75);
+    margin-top: 2px;
+  }
+  .break-btn__arrow {
+    margin-left: auto;
+    font-size: 24px;
+    color: rgba(255,255,255,0.6);
+    flex-shrink: 0;
+  }
+
+  /* Active break screen */
+  .active-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  .active-screen.show {
+    display: flex;
+  }
+  .select-section.hide {
+    display: none;
+  }
+
+  /* Return time card */
+  .return-card {
+    width: 100%;
+    border-radius: 28px;
+    padding: 32px 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .return-card--70 {
+    background: linear-gradient(160deg, var(--surface-light), #2A2660);
+    border: 1px solid rgba(108, 99, 255, 0.3);
+  }
+  .return-card--100 {
+    background: linear-gradient(160deg, var(--surface-light), #3A2040);
+    border: 1px solid rgba(255, 107, 107, 0.3);
+  }
+  .return-card__pulse {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 200px; height: 200px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    opacity: 0.08;
+  }
+  .return-card--70 .return-card__pulse {
+    background: var(--primary);
+    animation: pulse70 2s ease-in-out infinite;
+  }
+  .return-card--100 .return-card__pulse {
+    background: var(--accent);
+    animation: pulse100 2s ease-in-out infinite;
+  }
+  @keyframes pulse70 {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.08; }
+    50% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.15; }
+  }
+  @keyframes pulse100 {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.08; }
+    50% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.15; }
+  }
+  .return-card__label {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .return-card__time {
+    font-size: 64px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    font-variant-numeric: tabular-nums;
+    position: relative;
+    line-height: 1.1;
+  }
+  .return-card--70 .return-card__time { color: #A78BFA; }
+  .return-card--100 .return-card__time { color: #FF8E8E; }
+  .return-card__meridiem {
+    font-size: 20px;
+    font-weight: 700;
+    margin-left: 4px;
+    opacity: 0.7;
+  }
+
+  /* Info pills */
+  .info-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+  .info-pill {
+    flex: 1;
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 16px 12px;
+    text-align: center;
+  }
+  .info-pill__icon {
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+  .info-pill__label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .info-pill__value {
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Countdown ring */
+  .countdown-ring {
+    width: 180px;
+    height: 180px;
+    position: relative;
+    margin: 4px 0;
+  }
+  .countdown-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .countdown-ring__bg {
+    fill: none;
+    stroke: var(--surface-light);
+    stroke-width: 8;
+  }
+  .countdown-ring__progress {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear;
+  }
+  .countdown-ring__progress--70 { stroke: url(#grad70); }
+  .countdown-ring__progress--100 { stroke: url(#grad100); }
+  .countdown-ring__center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .countdown-ring__remaining {
+    font-size: 36px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+  }
+  .countdown-ring__unit {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* Warning state */
+  .warning .return-card {
+    animation: warningFlash 1s ease-in-out infinite;
+  }
+  @keyframes warningFlash {
+    0%, 100% { border-color: rgba(255, 137, 6, 0.3); }
+    50% { border-color: rgba(255, 137, 6, 0.8); box-shadow: 0 0 30px rgba(255, 137, 6, 0.2); }
+  }
+  .warning .countdown-ring__remaining {
+    color: var(--warning);
+  }
+
+  /* Overtime state */
+  .overtime .return-card {
+    animation: overtimeFlash 0.6s ease-in-out infinite;
+    border-color: var(--accent) !important;
+  }
+  @keyframes overtimeFlash {
+    0%, 100% { box-shadow: 0 0 20px rgba(255, 107, 107, 0.2); }
+    50% { box-shadow: 0 0 40px rgba(255, 107, 107, 0.5); }
+  }
+  .overtime .countdown-ring__remaining {
+    color: var(--accent);
+  }
+  .overtime-badge {
+    display: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 20px;
+    animation: overtimePulse 1s ease-in-out infinite;
+  }
+  .overtime .overtime-badge { display: inline-block; }
+  @keyframes overtimePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* Cancel button */
+  .cancel-btn {
+    width: 100%;
+    padding: 18px;
+    border: 2px solid var(--surface-light);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: 16px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    margin-top: 8px;
+  }
+  .cancel-btn:active {
+    background: var(--surface);
+    border-color: var(--text-dim);
+  }
+
+  /* History */
+  .history {
+    padding: 0 24px 24px;
+    position: relative;
+    z-index: 1;
+  }
+  .history__title {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .history__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .history__item {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+  }
+  .history__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .history__dot--70 { background: var(--primary); }
+  .history__dot--100 { background: var(--accent); }
+  .history__detail { flex: 1; }
+  .history__time {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .history__meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .history__status {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 8px;
+  }
+  .history__status--ok {
+    background: rgba(44, 182, 125, 0.15);
+    color: var(--success);
+  }
+  .history__status--late {
+    background: rgba(255, 107, 107, 0.15);
+    color: var(--accent);
+  }
+  .history__empty {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="bg-glow bg-glow--1"></div>
+  <div class="bg-glow bg-glow--2"></div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header__label">BREAK TIMER</div>
+    <div class="header__title">休憩タイマー</div>
+  </div>
+
+  <!-- Current time -->
+  <div class="now-bar">
+    <div class="now-bar__icon">🕐</div>
+    <div>
+      <div class="now-bar__time" id="currentTime">--:--</div>
+      <div class="now-bar__date" id="currentDate"></div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Break selection -->
+    <div class="select-section" id="selectSection">
+      <div class="select-section__label">休憩時間を選んでください</div>
+
+      <button class="break-btn break-btn--70" onclick="startBreak(70)">
+        <div class="break-btn__shimmer"></div>
+        <div class="break-btn__content">
+          <div class="break-btn__icon">☕</div>
+          <div class="break-btn__text">
+            <div class="break-btn__duration">70分休憩</div>
+            <div class="break-btn__sub">1時間10分</div>
+          </div>
+          <div class="break-btn__arrow">›</div>
+        </div>
+      </button>
+
+      <button class="break-btn break-btn--100" onclick="startBreak(100)">
+        <div class="break-btn__shimmer"></div>
+        <div class="break-btn__content">
+          <div class="break-btn__icon">🍽️</div>
+          <div class="break-btn__text">
+            <div class="break-btn__duration">100分休憩</div>
+            <div class="break-btn__sub">1時間40分</div>
+          </div>
+          <div class="break-btn__arrow">›</div>
+        </div>
+      </button>
+    </div>
+
+    <!-- Active break -->
+    <div class="active-screen" id="activeScreen">
+      <div class="return-card" id="returnCard">
+        <div class="return-card__pulse"></div>
+        <div class="return-card__label">🔔 戻り時刻</div>
+        <div class="return-card__time" id="returnTime">--:--</div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-pill">
+          <div class="info-pill__icon">🚀</div>
+          <div class="info-pill__label">休憩開始</div>
+          <div class="info-pill__value" id="startTime">--:--</div>
+        </div>
+        <div class="info-pill">
+          <div class="info-pill__icon">⏱️</div>
+          <div class="info-pill__label">休憩時間</div>
+          <div class="info-pill__value" id="breakDuration">--分</div>
+        </div>
+        <div class="info-pill">
+          <div class="info-pill__icon">📍</div>
+          <div class="info-pill__label">経過</div>
+          <div class="info-pill__value" id="elapsed">0分</div>
+        </div>
+      </div>
+
+      <!-- Countdown ring -->
+      <div class="countdown-ring">
+        <svg viewBox="0 0 180 180">
+          <defs>
+            <linearGradient id="grad70" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#6C63FF"/>
+              <stop offset="100%" style="stop-color:#A78BFA"/>
+            </linearGradient>
+            <linearGradient id="grad100" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#FF6B6B"/>
+              <stop offset="100%" style="stop-color:#FFA07A"/>
+            </linearGradient>
+          </defs>
+          <circle class="countdown-ring__bg" cx="90" cy="90" r="80"/>
+          <circle class="countdown-ring__progress" id="ringProgress" cx="90" cy="90" r="80"
+            stroke-dasharray="502.65" stroke-dashoffset="0"/>
+        </svg>
+        <div class="countdown-ring__center">
+          <div class="countdown-ring__remaining" id="remaining">--:--</div>
+          <div class="countdown-ring__unit">残り時間</div>
+        </div>
+      </div>
+
+      <div class="overtime-badge" id="overtimeBadge">⚠️ 時間超過！</div>
+
+      <button class="cancel-btn" onclick="cancelBreak()">休憩終了</button>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="history" id="historySection">
+    <div class="history__title">📋 履歴</div>
+    <div class="history__list" id="historyList">
+      <div class="history__empty">まだ記録がありません</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let breakStartTime = null;
+  let breakMinutes = 0;
+  let timerInterval = null;
+  let history = JSON.parse(localStorage.getItem('breakHistory') || '[]');
+
+  // Format time
+  function fmt(date) {
+    const h = date.getHours().toString().padStart(2, '0');
+    const m = date.getMinutes().toString().padStart(2, '0');
+    return `${h}:${m}`;
+  }
+
+  // Update current time
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('currentTime').textContent = fmt(now);
+    const days = ['日', '月', '火', '水', '木', '金', '土'];
+    const d = now;
+    document.getElementById('currentDate').textContent =
+      `${d.getMonth()+1}月${d.getDate()}日（${days[d.getDay()]}）`;
+  }
+
+  // Start break
+  function startBreak(minutes) {
+    breakStartTime = new Date();
+    breakMinutes = minutes;
+
+    const returnDate = new Date(breakStartTime.getTime() + minutes * 60000);
+
+    // Update UI
+    document.getElementById('selectSection').classList.add('hide');
+    document.getElementById('activeScreen').classList.add('show');
+
+    const card = document.getElementById('returnCard');
+    card.className = `return-card return-card--${minutes}`;
+
+    document.getElementById('returnTime').textContent = fmt(returnDate);
+    document.getElementById('startTime').textContent = fmt(breakStartTime);
+    document.getElementById('breakDuration').textContent = `${minutes}分`;
+
+    const ring = document.getElementById('ringProgress');
+    ring.className.baseVal = `countdown-ring__progress countdown-ring__progress--${minutes}`;
+
+    // Start countdown
+    updateCountdown();
+    timerInterval = setInterval(updateCountdown, 1000);
+
+    // Vibrate on start
+    if (navigator.vibrate) navigator.vibrate(100);
+  }
+
+  // Update countdown
+  function updateCountdown() {
+    const now = new Date();
+    const endTime = new Date(breakStartTime.getTime() + breakMinutes * 60000);
+    const diff = endTime - now; // ms remaining
+    const totalMs = breakMinutes * 60000;
+
+    const elapsedMs = now - breakStartTime;
+    const elapsedMin = Math.floor(elapsedMs / 60000);
+    document.getElementById('elapsed').textContent = `${elapsedMin}分`;
+
+    const screen = document.getElementById('activeScreen');
+    const circumference = 502.65;
+    const ring = document.getElementById('ringProgress');
+
+    if (diff > 0) {
+      // Still within break
+      const totalSec = Math.ceil(diff / 1000);
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      document.getElementById('remaining').textContent =
+        `${min}:${sec.toString().padStart(2, '0')}`;
+
+      const progress = 1 - (diff / totalMs);
+      ring.style.strokeDashoffset = circumference * (1 - progress);
+
+      // Warning at 5 min
+      screen.classList.remove('overtime');
+      if (diff <= 300000) {
+        screen.classList.add('warning');
+        // Vibrate warning
+        if (diff <= 300000 && diff > 299000 && navigator.vibrate) {
+          navigator.vibrate([200, 100, 200]);
+        }
+      } else {
+        screen.classList.remove('warning');
+      }
+    } else {
+      // Overtime
+      const overSec = Math.floor(Math.abs(diff) / 1000);
+      const overMin = Math.floor(overSec / 60);
+      const overS = overSec % 60;
+      document.getElementById('remaining').textContent =
+        `+${overMin}:${overS.toString().padStart(2, '0')}`;
+
+      ring.style.strokeDashoffset = 0;
+
+      screen.classList.remove('warning');
+      screen.classList.add('overtime');
+
+      // Vibrate on overtime start
+      if (overSec <= 1 && navigator.vibrate) {
+        navigator.vibrate([500, 200, 500, 200, 500]);
+      }
+    }
+  }
+
+  // Cancel break
+  function cancelBreak() {
+    clearInterval(timerInterval);
+
+    const now = new Date();
+    const endTime = new Date(breakStartTime.getTime() + breakMinutes * 60000);
+    const wasLate = now > endTime;
+    const elapsedMin = Math.round((now - breakStartTime) / 60000);
+
+    // Save to history
+    history.unshift({
+      date: breakStartTime.toISOString(),
+      minutes: breakMinutes,
+      startTime: fmt(breakStartTime),
+      returnTime: fmt(endTime),
+      actualReturn: fmt(now),
+      elapsed: elapsedMin,
+      late: wasLate
+    });
+    if (history.length > 20) history.pop();
+    localStorage.setItem('breakHistory', JSON.stringify(history));
+
+    // Reset UI
+    document.getElementById('selectSection').classList.remove('hide');
+    const screen = document.getElementById('activeScreen');
+    screen.classList.remove('show', 'warning', 'overtime');
+
+    breakStartTime = null;
+    breakMinutes = 0;
+
+    renderHistory();
+  }
+
+  // Render history
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    if (history.length === 0) {
+      list.innerHTML = '<div class="history__empty">まだ記録がありません</div>';
+      return;
+    }
+    list.innerHTML = history.slice(0, 5).map(h => {
+      const date = new Date(h.date);
+      const days = ['日', '月', '火', '水', '木', '金', '土'];
+      const dateStr = `${date.getMonth()+1}/${date.getDate()}（${days[date.getDay()]}）`;
+      return `
+        <div class="history__item">
+          <div class="history__dot history__dot--${h.minutes}"></div>
+          <div class="history__detail">
+            <div class="history__time">${h.startTime} → ${h.actualReturn}</div>
+            <div class="history__meta">${dateStr}　${h.minutes}分休憩（実際: ${h.elapsed}分）</div>
+          </div>
+          <div class="history__status history__status--${h.late ? 'late' : 'ok'}">
+            ${h.late ? '超過' : '😊'}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Init
+  updateClock();
+  setInterval(updateClock, 1000);
+  renderHistory();
+</script>
+
+</body>
+</html>
