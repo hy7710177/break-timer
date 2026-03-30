@@ -643,6 +643,12 @@
     updateCountdown();
     timerInterval = setInterval(updateCountdown, 1000);
 
+    // Save active break to localStorage
+    localStorage.setItem('activeBreak', JSON.stringify({
+      startTime: breakStartTime.toISOString(),
+      minutes: breakMinutes
+    }));
+
     // Vibrate on start
     if (navigator.vibrate) navigator.vibrate(100);
   }
@@ -726,6 +732,9 @@
     if (history.length > 20) history.pop();
     localStorage.setItem('breakHistory', JSON.stringify(history));
 
+    // Clear active break from localStorage
+    localStorage.removeItem('activeBreak');
+
     // Reset UI
     document.getElementById('selectSection').classList.remove('hide');
     const screen = document.getElementById('activeScreen');
@@ -763,9 +772,47 @@
     }).join('');
   }
 
+  // Restore active break from localStorage
+  function restoreBreak() {
+    const saved = localStorage.getItem('activeBreak');
+    if (!saved) return;
+
+    const data = JSON.parse(saved);
+    const savedStart = new Date(data.startTime);
+    const endTime = new Date(savedStart.getTime() + data.minutes * 60000);
+    const now = new Date();
+
+    // 休憩開始から24時間以上経っていたら古いデータとして削除
+    if (now - savedStart > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem('activeBreak');
+      return;
+    }
+
+    // 復元
+    breakStartTime = savedStart;
+    breakMinutes = data.minutes;
+
+    document.getElementById('selectSection').classList.add('hide');
+    document.getElementById('activeScreen').classList.add('show');
+
+    const card = document.getElementById('returnCard');
+    card.className = `return-card return-card--${breakMinutes}`;
+
+    document.getElementById('returnTime').textContent = fmt(endTime);
+    document.getElementById('startTime').textContent = fmt(breakStartTime);
+    document.getElementById('breakDuration').textContent = `${breakMinutes}分`;
+
+    const ring = document.getElementById('ringProgress');
+    ring.className.baseVal = `countdown-ring__progress countdown-ring__progress--${breakMinutes}`;
+
+    updateCountdown();
+    timerInterval = setInterval(updateCountdown, 1000);
+  }
+
   // Init
   updateClock();
   setInterval(updateClock, 1000);
+  restoreBreak();
   renderHistory();
 </script>
 
